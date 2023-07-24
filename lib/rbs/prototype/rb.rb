@@ -457,6 +457,8 @@ module RBS
 
       def const_to_name(node, context:)
         if node
+          return if node.children && node.children[0].class != Symbol && %i[VCALL DVAR].include?(node.children[0].type)
+
           case node.type
           when :SELF
             context.namespace.to_type_name

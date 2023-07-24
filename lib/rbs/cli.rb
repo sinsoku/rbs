@@ -718,6 +718,8 @@ EOU
       base_dir = nil
       # @type var force: bool
       force = false
+      # @type var skip_syntax_error: bool
+      skip_syntax_error = false
 
       opts = OptionParser.new
       opts.banner = <<EOU
@@ -749,6 +751,10 @@ EOU
 
       opts.on("--force", "Overwrite existing RBS files") do
         force = true
+      end
+
+      opts.on("--skip-syntax-error", "Skip generating when Ruby code is syntax error") do
+        skip_syntax_error = true
       end
 
       opts.parse!(args)
@@ -820,7 +826,16 @@ EOU
             output_path = (output_dir + relative_path).sub_ext(".rbs")
 
             parser = new_parser[]
-            parser.parse file_path.read()
+            begin
+              parser.parse file_path.read()
+            rescue SyntaxError => e
+              if skip_syntax_error
+                stdout.puts "    - Skipped `#{file_path}` due to syntax error..."
+                next
+              else
+                raise e
+              end
+            end
 
             if output_path.file?
               if force
@@ -860,6 +875,13 @@ EOU
 
         input_paths.each do |file|
           parser.parse file.read()
+        rescue SyntaxError => e
+          if skip_syntax_error
+            stdout.puts "Skipped `#{file}` due to syntax error..."
+            next
+          else
+            raise e
+          end
         end
 
         writer = Writer.new(out: stdout)
