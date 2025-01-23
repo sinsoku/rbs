@@ -22,16 +22,19 @@ module RBS
           end
         end
 
-        attr_reader :config, :lockfile, :definition, :existing_lockfile, :gem_hash, :gem_entries
+        attr_reader :config, :lockfile, :definition, :existing_lockfile, :gem_hash, :gem_entries, :only
 
-        def self.generate(config:, definition:, with_lockfile: true)
-          generator = new(config: config, definition: definition, with_lockfile: with_lockfile)
+        # TODO: remove `with_lockfile`
+
+        def self.generate(config:, definition:, with_lockfile: true, only: [])
+          generator = new(config: config, definition: definition, with_lockfile: with_lockfile, only: only)
           generator.generate
           generator.lockfile
         end
 
-        def initialize(config:, definition:, with_lockfile:)
+        def initialize(config:, definition:, with_lockfile:, only: [])
           @config = config
+          @only = only
 
           @gem_entries = config.gems.each.with_object({}) do |entry, hash| #$ Hash[String, gem_entry?]
             name = entry["name"]
@@ -47,7 +50,7 @@ module RBS
             gemfile_lock_path: definition.lockfile.relative_path_from(lockfile_dir)
           )
 
-          if with_lockfile && lockfile_path.file?
+          if lockfile_path.file?
             @existing_lockfile = Lockfile.from_lockfile(lockfile_path: lockfile_path, data: YAML.load_file(lockfile_path.to_s))
             validate_gemfile_lock_path!(lock: @existing_lockfile, gemfile_lock_path: definition.lockfile)
           end
@@ -102,7 +105,7 @@ module RBS
           unless skip
             # @type var locked: Lockfile::library?
 
-            if existing_lockfile
+            if existing_lockfile && !only.empty? && !only.include?(name)
               locked = existing_lockfile.gems[name]
             end
 
@@ -134,7 +137,9 @@ module RBS
             end
 
             if locked
-              lockfile.gems[name] = locked
+              if only.empty? || (existing_lockfile && existing_lockfile.gems.key?(name))
+                lockfile.gems[name] = locked
+              end
 
               begin
                 locked[:source].dependencies_of(locked[:name], locked[:version])&.each do |dep|

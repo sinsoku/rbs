@@ -1057,7 +1057,7 @@ EOB
 
       opts = collection_options(args)
       params = {} #: Hash[Symbol, untyped]
-      opts.order args.drop(1), into: params
+      extra_args = opts.order args.drop(1), into: params
       config_path = options.config_path or raise
       lock_path = Collection::Config.to_lockfile_path(config_path)
 
@@ -1068,8 +1068,7 @@ EOB
         end
         Collection::Installer.new(lockfile_path: lock_path, stdout: stdout).install_from_lockfile
       when 'update', 'updat', 'upda', 'upd', 'up', 'u'
-        # TODO: Be aware of argv to update only specified gem
-        Collection::Config.generate_lockfile(config_path: config_path, definition: Bundler.definition, with_lockfile: false)
+        Collection::Config.generate_lockfile(config_path: config_path, definition: Bundler.definition, with_lockfile: false, only: extra_args)
         Collection::Installer.new(lockfile_path: lock_path, stdout: stdout).install_from_lockfile
       when 'init'
         if config_path.exist?
